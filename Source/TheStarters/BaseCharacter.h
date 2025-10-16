@@ -5,14 +5,19 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 
-#include "InputActionValue.h" // обов’язково
+// Input system
+#include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
+// Camera and spring
+#include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+
 #include "BaseCharacter.generated.h"
 
-UCLASS(Abstract) // робить клас абстрактним (не можна створити напряму)
+UCLASS() // робить клас абстрактним (не можна створити напряму)
 class THESTARTERS_API ABaseCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -27,6 +32,14 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    
+    // Camera and spring componets
+    /*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+    USpringArmComponent* CameraBoom;*/
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+    UCameraComponent* FollowCamera;
+
 
     // Enhanced Input Actions
     UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -37,15 +50,22 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputAction* SprintAction;
+    
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    class UInputAction* JumpAction;
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputAction* SpecialAbilityAction;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    class UInputAction* LookAction;
 
     // Input functions
     void Move(const FInputActionValue& Value);
     void StartSprint(const FInputActionValue& Value);
     void StopSprint(const FInputActionValue& Value);
     void SpecialAbility(const FInputActionValue& Value);
+    void Look(const FInputActionValue& Value);
 
     // Stats
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
