@@ -3,9 +3,14 @@
 
 #include "BaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+
+// Network
+#include "Net/UnrealNetwork.h"
+
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -44,10 +49,67 @@ void ABaseCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(LogTemp, Warning, TEXT("BaseCharacter: V1 Initialized!"));
-    GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("BaseCharacter: V1.2 Initialized!"));
+    // GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("BaseCharacter: V1.2 Initialized!"));
+    
+    ENetMode netMode = GetNetMode();
+    
+    FString netModeStr = "Net mode: ";
 
-    // Додаємо Input Mapping Context
+    switch (netMode)
+    {
+    case NM_Standalone:
+        netModeStr += "NM_Standalone";
+        break;
+    case NM_DedicatedServer:
+        netModeStr += "NM_DedicatedServer";
+        break;
+    case NM_ListenServer:
+        netModeStr += "NM_ListenServer";
+        break;
+    case NM_Client:
+        netModeStr += "NM_Client";
+        break;
+    case NM_MAX:
+        netModeStr += "NM_MAX";
+        break;
+    default:
+        break;
+    }
+
+    FString RoleStr;
+    FString WorldName = GetWorld() ? GetWorld()->GetName() : "NoWorld";
+
+    switch (GetLocalRole())
+    {
+    case ROLE_Authority: RoleStr = "ROLE_Authority (Server)"; break;
+    case ROLE_AutonomousProxy: RoleStr = "ROLE_AutonomousProxy (Local Player)"; break;
+    case ROLE_SimulatedProxy: RoleStr = "ROLE_SimulatedProxy (Other Player)"; break;
+    default: RoleStr = "ROLE_Unknown"; break;
+    }
+
+    FString DebugMsg = FString::Printf(TEXT("%s | %s | %s | %s"),
+        *GetName(), *netModeStr, *RoleStr, *WorldName);
+
+    /*GEngine->AddOnScreenDebugMessage(-1, 155555555.0f, FColor::Yellow, DebugMsg);
+    GEngine->AddOnScreenDebugMessage(-1, 155555555.0f, FColor::Yellow, GetName());
+    UE_LOG(LogTemp, Log, TEXT("%s"), *DebugMsg);*/
+
+    // Change capsule color for local player
+    if (GetName().Equals("BP_BaseCharacter_C_0") && GetCapsuleComponent())
+    {
+        // Змінюємо колір капсули (матеріал)
+        UMaterialInstanceDynamic* DynMat = GetCapsuleComponent()->CreateAndSetMaterialInstanceDynamic(0);
+        if (DynMat)
+        {
+            DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor::Black);
+        }
+
+        // Або простіше — змінити візуальний debug-колір
+        GetCapsuleComponent()->ShapeColor = FColor::Black;
+        GetCapsuleComponent()->MarkRenderStateDirty(); // Оновити рендер
+    }
+
+    // Add Input Mapping Context
     if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
     {
         if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
@@ -99,17 +161,47 @@ void ABaseCharacter::Move(const FInputActionValue& Value)
     }
 }
 
+void ABaseCharacter::Server_SetMoveSpeed_Implementation(float NewSpeed)
+{
+    MoveSpeed = NewSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
+}
+
 void ABaseCharacter::StartSprint(const FInputActionValue& Value)
 {
     bIsSprinting = true;
-    GetCharacterMovement()->MaxWalkSpeed = MoveSpeed * SprintMultiplier;
+    
+    if (HasAuthority())
+    {
+        MoveSpeed = DefaultMoveSpeed * SprintMultiplier;
+        GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+    }
+    else
+    {
+        Server_SetMoveSpeed(DefaultMoveSpeed * SprintMultiplier);
+    }
 }
 
 void ABaseCharacter::StopSprint(const FInputActionValue& Value)
 {
     bIsSprinting = false;
+
+    if (HasAuthority())
+    {
+        MoveSpeed = DefaultMoveSpeed;
+        GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+    }
+    else
+    {
+        Server_SetMoveSpeed(DefaultMoveSpeed);
+    }
+}
+
+void ABaseCharacter::OnRep_MoveSpeed()
+{
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 }
+
 
 void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
 {
@@ -124,3 +216,11 @@ void ABaseCharacter::Look(const FInputActionValue& Value)
     AddControllerYawInput(LookAxis.X);
     AddControllerPitchInput(LookAxis.Y * -1.f);
 }
+
+void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ABaseCharacter, MoveSpeed);
+}
+

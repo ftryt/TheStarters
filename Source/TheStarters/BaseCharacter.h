@@ -17,7 +17,7 @@
 
 #include "BaseCharacter.generated.h"
 
-UCLASS() // робить клас абстрактним (не можна створити напряму)
+UCLASS(Abstract) // робить клас абстрактним (не можна створити напряму)
 class THESTARTERS_API ABaseCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -33,10 +33,6 @@ protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
     
-    // Camera and spring componets
-    /*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-    USpringArmComponent* CameraBoom;*/
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     UCameraComponent* FollowCamera;
 
@@ -67,12 +63,20 @@ protected:
     void SpecialAbility(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
 
+    UFUNCTION(Server, Reliable)
+    void Server_SetMoveSpeed(float NewSpeed);
+    UFUNCTION()
+    void OnRep_MoveSpeed();
+
     // Stats
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, ReplicatedUsing = OnRep_MoveSpeed, Category = "Stats")
     float MoveSpeed = 600.f;
+    // Fix client's twitch
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float DefaultMoveSpeed = 600.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-    float SprintMultiplier = 1.5f;
+    float SprintMultiplier = 2.0f;
 
     bool bIsSprinting = false;
 };

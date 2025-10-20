@@ -15,6 +15,9 @@ public class TheStarters : ModuleRules
             "Engine",
             "InputCore",
             "EnhancedInput",
+            "OnlineSubsystemEOS",
+            "OnlineSubsystem",
+            "OnlineSubsystemUtils",
             "HeadMountedDisplay"
         });
 
