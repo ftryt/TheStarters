@@ -31,13 +31,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
 	void CreateEOSSession(bool isDedicatedServer, bool isLanServer, int32 numOfpublicConnections);
 
-	/*UFUNCTION(BlueprintCallable, Category = "EOS Functions")
+	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
+	void DestroySession();
+
+	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
 	void FindSessionAndJoin();
 
 	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
-	void JoinSession();*/
+	void JoinSession();
 
-	//TSharedRef<FOnlineSessionSearch> SessionSearch = MakeShared<FOnlineSessionSearch>();
+	TSharedPtr<FOnlineSessionSearch> SessionSearch;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EOS Functions")
 	FString OpenLevelText;
 
@@ -45,6 +48,7 @@ public:
 
 	void OnLoginEOSCompleted(int32 LocalUserNum, bool Success, const FUniqueNetId& UserId, const FString& Error);
 	void OnCreateSessionCompleted(FName SessionName, bool isSuccesful);
+	void OnDestroySessionCompleted(FName SessionName, bool isSuccesful);
 	void OnFindSessionCompleted(bool isSuccesful);
 	void OnJoinSessionCompleted(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 };

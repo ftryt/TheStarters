@@ -202,7 +202,6 @@ void ABaseCharacter::OnRep_MoveSpeed()
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 }
 
-
 void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
 {
     //UE_LOG(LogTemp, Log, TEXT("Special Ability triggered"));
