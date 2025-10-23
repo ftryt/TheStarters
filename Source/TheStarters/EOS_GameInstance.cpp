@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 
 #define SEARCH_KEYWORDS TEXT("SearchKeywords")
+#define SETTING_MAPNAME TEXT("MAPNAME")
 
 void UEOS_GameInstance::LoginWithEOS(FString ID, FString Token, FString LoginType)
 {
@@ -145,6 +146,10 @@ void UEOS_GameInstance::CreateEOSSession(bool isDedicatedServer, bool isLanServe
 	FOnlineSessionSettings sessionInfo;
 	sessionInfo.bIsDedicated = isDedicatedServer;
 	sessionInfo.bAllowInvites = true;
+	// For dedicated server
+	/*sessionInfo.bAllowInvites = false;
+	sessionInfo.bAllowJoinViaPresence = false;
+	sessionInfo.bAllowJoinViaPresenceFriendsOnly = false;*/
 	sessionInfo.bIsLANMatch = isLanServer;
 	sessionInfo.NumPublicConnections = numOfpublicConnections;
 	sessionInfo.bUseLobbiesIfAvailable = true; //!!!
@@ -177,31 +182,26 @@ void UEOS_GameInstance::DestroySession() {
 
 void UEOS_GameInstance::FindSessionAndJoin()
 {
+	FName SearchKey = "KeyName";
+	FString SearchValue = "KeyValue";
+
 	IOnlineSubsystem* SubsystemRef = Online::GetSubsystem(this->GetWorld());
-
-	if (!SubsystemRef) {
-		UE_LOG(LogTemp, Error, TEXT("IOnlineSubsystem FAIL"));
-		return;
-	}
-
-	IOnlineSessionPtr SessionPtrRef = SubsystemRef->GetSessionInterface();
-
-	if (!SessionPtrRef) {
-		UE_LOG(LogTemp, Error, TEXT("GetSessionInterface FAIL"));
-		return;
-	}
-
+	IOnlineSessionPtr Session = SubsystemRef->GetSessionInterface();
 	SessionSearch = MakeShareable(new FOnlineSessionSearch());
 
-	// Idk why but probably for searching only for lobby
-	//SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
+	// Remove the default search parameters that FOnlineSessionSearch sets up.
+	SessionSearch->QuerySettings.SearchParams.Empty();
 
-	SessionSearch->MaxSearchResults = 20;
+	SessionSearch->QuerySettings.Set(SearchKey, SearchValue, EOnlineComparisonOp::Equals); // Seach using our Key/Value pair
+
+	// SessionSearch->MaxSearchResults = 20;
 	// SessionSearch->bIsLanQuery = false;
-	// SessionSearch->QuerySettings.SearchParams.Empty();
-	SessionPtrRef->OnFindSessionsCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnFindSessionCompleted);
 
-	SessionPtrRef->FindSessions(0, SessionSearch.ToSharedRef());
+	Session->OnFindSessionsCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnFindSessionCompleted);
+
+	UE_LOG(LogTemp, Log, TEXT("Finding session."));
+
+	Session->FindSessions(0, SessionSearch.ToSharedRef());
 }
 
 void UEOS_GameInstance::JoinSession()
@@ -241,67 +241,127 @@ void UEOS_GameInstance::OnDestroySessionCompleted(FName SessionName, bool isSucc
 
 void UEOS_GameInstance::OnFindSessionCompleted(bool isSuccesful)
 {
+	IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+	IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
+	FString ConnectString;
+	FOnlineSessionSearchResult* SessionToJoin;
+
 	if (isSuccesful) {
-		UE_LOG(LogTemp, Warning, TEXT("OnFindSessionCompleted, session found"));
+		UE_LOG(LogTemp, Warning, TEXT("OnFindSessionCompleted, Num of session found: %d"), SessionSearch->SearchResults.Num());
 
-		IOnlineSubsystem* SubsystemRef = Online::GetSubsystem(this->GetWorld());
+		for (auto SessionInSearchResult : SessionSearch->SearchResults)
+		{
+			// Typically you want to check if the session is valid before joining. There is a bug in the EOS OSS where IsValid() returns false when the session is created on a DS. 
+			// Instead of customizing the engine for this tutorial, we're simply not checking if the session is valid. The code below should go in this if statement once the bug is fixed. 
+			/*
+			if (SessionInSearchResult.IsValid())
+			{
 
-		if (!SubsystemRef) {
-			UE_LOG(LogTemp, Error, TEXT("IOnlineSubsystem FAIL"));
-			return;
+
+		}
+			*/
+
+			//Ensure the connection string is resolvable and store the info in ConnectInfo and in SessionToJoin
+			if (Session->GetResolvedConnectString(SessionInSearchResult, NAME_GamePort, ConnectString))
+			{
+				SessionToJoin = &SessionInSearchResult;
+				UE_LOG(LogTemp, Error, TEXT("??? %s"), *SessionToJoin->GetSessionIdStr());
+			}
+
+			UE_LOG(LogTemp, Error, TEXT("??? %s"), *ConnectString);
+
+			break;
 		}
 
-		IOnlineSessionPtr SessionPtrRef = SubsystemRef->GetSessionInterface();
-
-		if (!SessionPtrRef) {
-			UE_LOG(LogTemp, Error, TEXT("GetSessionInterface FAIL"));
-			return;
-		}
-
+		// Test Join for first avaible session
 		if (SessionSearch->SearchResults.Num() > 0) {
+			UE_LOG(LogTemp, Warning, TEXT("Joining session."));
 
-			SessionPtrRef->OnJoinSessionCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnJoinSessionCompleted);
-			SessionPtrRef->JoinSession(0, FName("MainSession"), SessionSearch->SearchResults[0]);
+			Session->OnJoinSessionCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnJoinSessionCompleted);
+			if (!Session->JoinSession(0, FName("SessionName"), SessionSearch->SearchResults[0]))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Join session failed"));
+			}
 		}
-		else {
-			UE_LOG(LogTemp, Error, TEXT("No KURWA SearchResults = 0"));
-			CreateEOSSession(false, false, 10);
-		}
-
 	}
 	else {
-		UE_LOG(LogTemp, Error, TEXT("Could find session, creating new one"));
+		UE_LOG(LogTemp, Error, TEXT("Failed to find session!!"));
 		CreateEOSSession(false, false, 10);
 	}
 }
 
+//void UEOS_GameInstance::OnJoinSessionCompleted(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+//{
+//	if (Result == EOnJoinSessionCompleteResult::Success) {
+//		if (APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GetWorld(), 0)) {
+//			UE_LOG(LogTemp, Warning, TEXT("Joined session."));
+//
+//			// For the purposes of this tutorial overriding the ConnectString to point to localhost as we are testing locally. In a real game no need to override. Make sure you can connect over UDP to the ip:port of your server!
+//			FString ConnectString = "127.0.0.1:7777";
+//			FURL DedicatedServerURL(nullptr, *ConnectString, TRAVEL_Absolute);
+//			FString DedicatedServerJoinError;
+//			auto DedicatedServerJoinStatus = GEngine->Browse(GEngine->GetWorldContextFromWorldChecked(GetWorld()), DedicatedServerURL, DedicatedServerJoinError);
+//			if (DedicatedServerJoinStatus == EBrowseReturnVal::Failure)
+//			{
+//				UE_LOG(LogTemp, Error, TEXT("Failed to browse for dedicated server. Error is: %s"), *DedicatedServerJoinError);
+//			}
+//
+//			// To be thorough here you should modify your derived UGameInstance to handle the NetworkError and TravelError events. 
+//			// As we are testing locally, and for the purposes of keeping this tutorial simple, this is omitted.
+//
+//			/*FString JoinAddress;
+//
+//			IOnlineSubsystem* SubsystemRef = Online::GetSubsystem(this->GetWorld());
+//			IOnlineSessionPtr SessionPtrRef = SubsystemRef->GetSessionInterface();
+//			SessionPtrRef->GetResolvedConnectString(SessionName, JoinAddress);
+//
+//			UE_LOG(LogTemp, Warning, TEXT("Join address is: %s"), *JoinAddress);
+//
+//			if (!JoinAddress.IsEmpty()) {
+//				PlayerControllerRef->ClientTravel(JoinAddress, ETravelType::TRAVEL_Absolute);
+//			}*/
+//		}
+//	}
+//}
+
 void UEOS_GameInstance::OnJoinSessionCompleted(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
 	if (Result == EOnJoinSessionCompleteResult::Success) {
-		if (APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GetWorld(), 0)) {
-			FString JoinAddress;
+		FString MapName;
+		
+		// Отримуємо адресу сервера з сесії
+		IOnlineSubsystem* SubsystemRef = Online::GetSubsystem(this->GetWorld());
+		IOnlineSessionPtr SessionPtrRef = SubsystemRef->GetSessionInterface();
+		SessionPtrRef->GetSessionSettings(SessionName)->Get(SETTING_MAPNAME, MapName);
+		
 
-			IOnlineSubsystem* SubsystemRef = Online::GetSubsystem(this->GetWorld());
-
-			if (!SubsystemRef) {
-				UE_LOG(LogTemp, Error, TEXT("IOnlineSubsystem FAIL"));
-				return;
-			}
-
-			IOnlineSessionPtr SessionPtrRef = SubsystemRef->GetSessionInterface();
-
-			if (!SessionPtrRef) {
-				UE_LOG(LogTemp, Error, TEXT("GetSessionInterface FAIL"));
-				return;
-			}
-
-			SessionPtrRef->GetResolvedConnectString(FName("MainSession"), JoinAddress);
-
-			UE_LOG(LogTemp, Warning, TEXT("Join address is: %s"), *JoinAddress);
-
-			if (!JoinAddress.IsEmpty()) {
-				PlayerControllerRef->ClientTravel(JoinAddress, ETravelType::TRAVEL_Absolute);
-			}
+		// JoinAddress = "192.168.0.201";
+		if (this->JoinAddress.IsEmpty()) {
+			SessionPtrRef->GetResolvedConnectString(SessionName, this->JoinAddress);
 		}
+		
+		UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Choosed join addres is: %s"), *JoinAddress);
+		UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Map Name: %s"), *MapName);
+
+		FURL ServerURL = FURL(nullptr, *JoinAddress, TRAVEL_Absolute);
+
+		// Explicitly set map name (avoiding some weird bugs) 
+		// !!! Requires setting up MAPNAME when creating session
+		ServerURL.Map = MapName;
+		FString ServerJoinError;
+
+		UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Connection to: %s"), *ServerURL.ToString());
+
+		auto ServerJoinStatus = GEngine->Browse(GEngine->GetWorldContextFromWorldChecked(GetWorld()), ServerURL, ServerJoinError);
+
+		if (ServerJoinStatus == EBrowseReturnVal::Failure) {
+			UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Failed to join server. Error: %s"), *ServerJoinError);
+
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Successfully joined server: %s"), *ServerURL.ToString());
+		}
+
 	}
 }
+

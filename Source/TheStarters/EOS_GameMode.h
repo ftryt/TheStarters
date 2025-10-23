@@ -16,5 +16,7 @@ class THESTARTERS_API AEOS_GameMode : public AGameModeBase
 
 public:
 
-	virtual void PostLogin(APlayerController* NewPlayer) override;
+	AEOS_GameMode();
+
+	/*virtual void PostLogin(APlayerController* NewPlayer) override;*/
 };

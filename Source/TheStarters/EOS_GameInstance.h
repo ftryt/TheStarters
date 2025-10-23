@@ -41,9 +41,12 @@ public:
 	void JoinSession();
 
 	TSharedPtr<FOnlineSessionSearch> SessionSearch;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EOS Functions")
 	FString OpenLevelText;
-
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EOS Functions")
+	FString JoinAddress;
 
 
 	void OnLoginEOSCompleted(int32 LocalUserNum, bool Success, const FUniqueNetId& UserId, const FString& Error);
