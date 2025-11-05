@@ -1,1 +1,0 @@
-"D:\Programs\UE_5.6\Engine\Binaries\Win64\UnrealEditor.exe" "C:\Users\38096\Documents\Unreal Projects\TheStarters\TheStarters.uproject" Lobby -server -log -port=7777 -multihome=0.0.0.0 -epicapp="Server"
