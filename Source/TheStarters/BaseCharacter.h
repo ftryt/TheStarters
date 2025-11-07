@@ -28,6 +28,7 @@ public:
 
     // Called every frame
     virtual void Tick(float DeltaTime) override;
+    void LeaveSession(FName sessionName);
 
 protected:
     virtual void BeginPlay() override;
@@ -79,4 +80,7 @@ protected:
     float SprintMultiplier = 2.0f;
 
     bool bIsSprinting = false;
+
+    FDelegateHandle DestroySessionDelegateHandle;
+    void HandleDestroySessionCompleted(FName SessionName, bool bWasSuccessful);
 };

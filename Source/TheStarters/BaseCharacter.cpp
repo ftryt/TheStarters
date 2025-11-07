@@ -7,10 +7,16 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "GameFramework/PlayerState.h"
+
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemUtils.h"
+#include "Interfaces/OnlineSessionInterface.h"
 
 // Network
 #include "Net/UnrealNetwork.h"
 
+#include "EOS_GameInstance.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -206,6 +212,40 @@ void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
 {
     //UE_LOG(LogTemp, Log, TEXT("Special Ability triggered"));
     GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Special Ability triggered"));
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+    if (PC && PC->PlayerState)
+    {
+        const FUniqueNetIdRepl& UniqueId = PC->PlayerState->GetUniqueId();
+        if (UniqueId.IsValid())
+        {
+            UE_LOG(LogTemp, Error, TEXT("SpecialAbility: Client UniqueNetId: %s"), *UniqueId->ToString());
+            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SpecialAbility: Client UniqueNetId OK"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
+            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
+        }
+    }
+
+    UEOS_GameInstance* GameInstanceRef = Cast<UEOS_GameInstance>(GetWorld()->GetGameInstance());
+
+    if (!GameInstanceRef->CurrentSession.SessionResult.IsValid()) {
+        UE_LOG(LogTemp, Error, TEXT("Session in GameInstance is invalid!"));
+        return;
+    }
+    FName sessionName = FName(GameInstanceRef->CurrentSession.SessionResult.GetSessionIdStr());
+
+    // LeaveSession(sessionName);
+    LeaveSession(sessionName);
+
+    if (PC)
+    {
+        PC->ClientTravel(TEXT("/Game/Maps/MainMenu"), TRAVEL_Absolute);
+    }
+
 }
 
 void ABaseCharacter::Look(const FInputActionValue& Value)
@@ -221,5 +261,46 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, MoveSpeed);
+}
+
+void ABaseCharacter::LeaveSession(FName SessionName)
+{
+    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+    if (!Subsystem) return;
+
+    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
+    if (!Session.IsValid()) return;
+
+    DestroySessionDelegateHandle = Session->AddOnDestroySessionCompleteDelegate_Handle(
+        FOnEndSessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleDestroySessionCompleted));
+
+    // Remove the session locally so it’s no longer referenced.
+    if (!Session->DestroySession(SessionName))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to destroy session locally."));
+        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
+        DestroySessionDelegateHandle.Reset();
+    }
+}
+
+void ABaseCharacter::HandleDestroySessionCompleted(FName SessionName, bool bWasSuccessful)
+{
+    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
+
+    if (Session.IsValid())
+    {
+        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
+        DestroySessionDelegateHandle.Reset();
+    }
+
+    if (bWasSuccessful)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Session destroyed successfully."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to destroy session."));
+    }
 }
 
