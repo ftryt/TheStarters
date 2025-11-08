@@ -24,6 +24,22 @@ private:
 	// Find local IP
 	FString ReadIpFromFile();
 
+public:
+	// Desired pawn to play that client must set up, store class per player
+	UPROPERTY()
+	TMap<FUniqueNetIdRepl, TSubclassOf<APawn>> PlayerDesiredClasses;
+
+	void SetPlayerDesiredClass(const FUniqueNetIdRepl& PlayerId, TSubclassOf<APawn> InClass)
+	{
+		PlayerDesiredClasses.Add(PlayerId, InClass);
+	}
+
+	TSubclassOf<APawn> GetPlayerDesiredClass(const FUniqueNetIdRepl& PlayerId) const
+	{
+		const TSubclassOf<APawn>* Found = PlayerDesiredClasses.Find(PlayerId);
+		return Found ? *Found : nullptr;
+	}
+
 protected:
 	// Class constructor. We won't use this in this tutorial. 
 	AEOS_GameSession();

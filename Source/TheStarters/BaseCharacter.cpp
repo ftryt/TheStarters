@@ -245,7 +245,6 @@ void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
     {
         PC->ClientTravel(TEXT("/Game/Maps/MainMenu"), TRAVEL_Absolute);
     }
-
 }
 
 void ABaseCharacter::Look(const FInputActionValue& Value)

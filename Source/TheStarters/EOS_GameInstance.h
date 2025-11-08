@@ -62,9 +62,6 @@ private:
 	void OnFindSessionAndJoinCompleted(bool isSuccesful);
 	void OnJoinSessionCompleted(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
-protected:
-	// virtual void BeginPlay();
-
 public:
 	virtual void Init() override;
 	
@@ -82,7 +79,7 @@ public:
 	void FindSessionAndJoin();
 
 	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
-	/* This function finds max 20 sessions with IS_DEDICATED_SERVER = true parameter */
+	// This function finds max 20 sessions with IS_DEDICATED_SERVER = true parameter
 	void FindSessions();
 
 	UFUNCTION(BlueprintCallable, Category = "EOS Functions")
@@ -94,4 +91,7 @@ public:
 	TSharedPtr<FOnlineSessionSearch> SessionSearch;
 
 	FMyBlueprintSessionResult CurrentSession;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "EOS Preferences")
+	TSubclassOf<APawn> DesiredPawnClass;
 };

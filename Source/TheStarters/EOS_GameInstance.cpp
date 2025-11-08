@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"      // For file reading/writing
 #include "HAL/PlatformFilemanager.h" // For accessing the platform file system
+#include "EOS_PlayerController.h"
 
 void UEOS_GameInstance::Init()
 {
@@ -121,7 +122,7 @@ void UEOS_GameInstance::OnLoginEOSCompleted(int32 LocalUserNum, bool Success, co
 FString UEOS_GameInstance::GetPlayerUsername()
 {
 	FString userName = "Null";
-	
+
 	if (!Subsystem || !Identity) {
 		UE_LOG(LogTemp, Error, TEXT("Subsystem or Identity not initialized"));
 		return userName;

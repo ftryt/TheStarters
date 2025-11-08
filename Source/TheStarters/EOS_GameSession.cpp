@@ -99,11 +99,15 @@ void AEOS_GameSession::NotifyLogout(const APlayerController* ExitingPlayer)
 
 void AEOS_GameSession::CreateSession() // Dedicated Server Only
 {
-	// Generate sessionName (TEST)
+	// Generate sessionName (Server_(map name)_(creation time))
 	FString MapName = UGameplayStatics::GetCurrentLevelName(GWorld);
 	FString CurrentTime = FDateTime::Now().ToString(TEXT("%Y%m%d%H%M%S"));
 	FString SessionNameConverted = FString::Printf(TEXT("Server_%s_%s"), *MapName, *CurrentTime);
 	SessionName = FName(SessionNameConverted);
+
+	// Get map name and remove PIE prefixes (like UEDPIE_0_)
+	FString CurrentMapName = GetWorld() ? GetWorld()->GetMapName() : TEXT("UnknownMap");
+	CurrentMapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
 	IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
 	IOnlineSessionPtr Session = Subsystem->GetSessionInterface(); // Retrieve the generic session interface. 
@@ -123,7 +127,7 @@ void AEOS_GameSession::CreateSession() // Dedicated Server Only
 	SessionSettings->bAllowJoinViaPresence = false; // superset by bShouldAdvertise and will be true on the backend
 	SessionSettings->bAllowJoinViaPresenceFriendsOnly = false; // superset by bShouldAdvertise and will be true on the backend
 	SessionSettings->bAllowInvites = false;    //Allow inviting players into session. This requires presence and a local user. 
-	SessionSettings->bAllowJoinInProgress = false; //Once the session is started, no one can join.
+	SessionSettings->bAllowJoinInProgress = true; // Allow join when session started (for testing).
 	SessionSettings->bIsDedicated = true; //Session created on dedicated server.
 	SessionSettings->bUseLobbiesIfAvailable = false; //This is an EOS Session not an EOS Lobby as they aren't supported on Dedicated Servers.
 	SessionSettings->bUseLobbiesVoiceChatIfAvailable = false;
@@ -132,7 +136,7 @@ void AEOS_GameSession::CreateSession() // Dedicated Server Only
 	// Adding custom attributes that will be used in searches on GameClients. 
 	SessionSettings->Set(TEXT("IS_DEDICATED_SERVER"), true, EOnlineDataAdvertisementType::ViaOnlineService);
 	SessionSettings->Set(TEXT("SESSION_NAME"), SessionName.ToString(), EOnlineDataAdvertisementType::ViaOnlineService);
-	SessionSettings->Set(TEXT("MAP_NAME"), FString(TEXT("/Game/Maps/Lobby")), EOnlineDataAdvertisementType::ViaOnlineService);
+	SessionSettings->Set(TEXT("MAP_NAME"), CurrentMapName, EOnlineDataAdvertisementType::ViaOnlineService);
 	// Because of me not having white ip connecting to server is only available in local mode, so change ip to local
 	SessionSettings->Set(TEXT("ADDRESS"), ReadIpFromFile(), EOnlineDataAdvertisementType::ViaOnlineService);
 
@@ -239,16 +243,22 @@ void AEOS_GameSession::UnregisterPlayer(const APlayerController* ExitingPlayer)
 
 		if (ExitingPlayer && ExitingPlayer->PlayerState) // If the player leaves ungracefully this could be null
 		{
+			if (!ExitingPlayer->PlayerState->GetUniqueId().IsValid()) {
+				UE_LOG(LogTemp, Error, TEXT("UnregisterPlayer failed: UniqueId is invalid!"));
+				return;
+			}
+
+			// Remove player from PlayerDesiredClasses map
+			if (PlayerDesiredClasses.Remove(ExitingPlayer->PlayerState->GetUniqueId()) > 0)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Removed PlayerDesiredClass entry for player %s"), *ExitingPlayer->PlayerState->GetUniqueId()->ToString());
+			}
+			
 			// Bind delegate to callback function
 			UnregisterPlayerDelegateHandle =
 				Session->AddOnUnregisterPlayersCompleteDelegate_Handle(FOnUnregisterPlayersCompleteDelegate::CreateUObject(
 					this,
 					&ThisClass::HandleUnregisterPlayerCompleted));
-
-			if (!ExitingPlayer->PlayerState->GetUniqueId().IsValid()) {
-				UE_LOG(LogTemp, Error, TEXT("UnregisterPlayer failed: UniqueId is invalid!"));
-				return;
-			}
 
 			if (!Session->UnregisterPlayer(SessionName, *ExitingPlayer->PlayerState->GetUniqueId().GetUniqueNetId()))
 			{
