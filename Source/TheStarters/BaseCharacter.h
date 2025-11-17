@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+п»ї// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -11,20 +11,39 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
-// Camera and spring
+// Camera
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
+// Data table for weapons (row type ST_WeaponTableRow used by DT_WeaponList)
+#include "Engine/DataTable.h"
+
 #include "BaseCharacter.generated.h"
 
-UCLASS(Abstract) // робить клас абстрактним (не можна створити напряму)
+// DataTable row used by DT_WeaponList
+USTRUCT(BlueprintType)
+struct FST_WeaponTableRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    // Static mesh shown for the weapon (optional for you)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TObjectPtr<UStaticMesh> StaticMesh = nullptr;
+
+    // Blueprint class to spawn for this weapon (e.g. BP_ShooterWeapon_Pistol)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSubclassOf<AActor> SpawnActor = nullptr;
+};
+
+
+UCLASS(Abstract) // СЂРѕР±РёС‚СЊ РєР»Р°СЃ Р°Р±СЃС‚СЂР°РєС‚РЅРёРј (РЅРµ РјРѕР¶РЅР° СЃС‚РІРѕСЂРёС‚Рё РЅР°РїСЂСЏРјСѓ)
 class THESTARTERS_API ABaseCharacter : public ACharacter
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	ABaseCharacter();
+    // Sets default values for this character's properties
+    ABaseCharacter();
 
     // Called every frame
     virtual void Tick(float DeltaTime) override;
@@ -32,10 +51,9 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-    
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     UCameraComponent* FollowCamera;
-
 
     // Enhanced Input Actions
     UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -46,7 +64,7 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputAction* SprintAction;
-    
+
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputAction* JumpAction;
 
@@ -65,12 +83,14 @@ protected:
 
     UFUNCTION(Server, Reliable)
     void Server_SetMoveSpeed(float NewSpeed);
+
     UFUNCTION()
     void OnRep_MoveSpeed();
 
     // Stats
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, ReplicatedUsing = OnRep_MoveSpeed, Category = "Stats")
     float MoveSpeed = 600.f;
+
     // Fix client's twitch
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     float DefaultMoveSpeed = 600.0f;
@@ -79,4 +99,22 @@ protected:
     float SprintMultiplier = 2.0f;
 
     bool bIsSprinting = false;
+
+    /* ================== WEAPONS ================== */
+
+    // Row in DT_WeaponList that defines this character's default weapon
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapons")
+    FDataTableRowHandle DefaultWeaponRow;
+
+    // Socket on the character mesh to attach the weapon to
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapons")
+    FName WeaponSocketName = TEXT("WeaponSocket");
+
+    // Currently spawned weapon actor
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapons")
+    AActor* CurrentWeapon = nullptr;
+
+    // Spawns and attaches weapon defined by DefaultWeaponRow
+    UFUNCTION(BlueprintCallable, Category = "Weapons")
+    void EquipDefaultWeapon();
 };
