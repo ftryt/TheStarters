@@ -1,4 +1,4 @@
-ï»¿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "BaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -7,6 +7,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "GameFramework/PlayerState.h"
+
+#include "EOS_GameInstance.h"
 
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
@@ -132,6 +134,47 @@ void ABaseCharacter::BeginPlay()
 void ABaseCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+}
+
+void ABaseCharacter::LeaveSession(FName SessionName)
+{
+    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+    if (!Subsystem) return;
+
+    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
+    if (!Session.IsValid()) return;
+
+    DestroySessionDelegateHandle = Session->AddOnDestroySessionCompleteDelegate_Handle(
+        FOnEndSessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleDestroySessionCompleted));
+
+    // Remove the session locally so it�s no longer referenced.
+    if (!Session->DestroySession(SessionName))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to destroy session locally."));
+        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
+        DestroySessionDelegateHandle.Reset();
+    }
+}
+
+void ABaseCharacter::HandleDestroySessionCompleted(FName SessionName, bool bWasSuccessful)
+{
+    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
+
+    if (Session.IsValid())
+    {
+        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
+        DestroySessionDelegateHandle.Reset();
+    }
+
+    if (bWasSuccessful)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Session destroyed successfully."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to destroy session."));
+    }
 }
 
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

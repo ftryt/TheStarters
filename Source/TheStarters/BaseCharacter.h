@@ -101,6 +101,9 @@ protected:
 
     bool bIsSprinting = false;
 
+    FDelegateHandle DestroySessionDelegateHandle;
+    void HandleDestroySessionCompleted(FName SessionName, bool bWasSuccessful);
+
     /* ================== WEAPONS ================== */
 
     // Row in DT_WeaponList that defines this character's default weapon
