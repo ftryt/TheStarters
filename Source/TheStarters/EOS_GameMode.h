@@ -13,10 +13,7 @@ UCLASS()
 class THESTARTERS_API AEOS_GameMode : public AGameModeBase
 {
 	GENERATED_BODY()
-
+	
 public:
-
-	AEOS_GameMode();
-
-	/*virtual void PostLogin(APlayerController* NewPlayer) override;*/
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 };

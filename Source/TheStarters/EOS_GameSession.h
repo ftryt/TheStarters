@@ -6,13 +6,39 @@
 #include "GameFramework/GameSession.h"
 #include "EOS_GameSession.generated.h"
 
-/**
- * 
- */
+UENUM(BlueprintType)
+enum class EGameSessionType : uint8
+{
+	Training UMETA(DisplayName = "Training Server"),
+	Ranked UMETA(DisplayName = "Ranked Server"),
+	Coop UMETA(DisplayName = "Coop Server")
+};
+
+
 UCLASS()
 class THESTARTERS_API AEOS_GameSession : public AGameSession
 {
 	GENERATED_BODY()
+
+private:
+	// Find local IP
+	FString ReadIpFromFile();
+
+public:
+	// Desired pawn to play that client must set up, store class per player
+	UPROPERTY()
+	TMap<FUniqueNetIdRepl, TSubclassOf<APawn>> PlayerDesiredClasses;
+
+	void SetPlayerDesiredClass(const FUniqueNetIdRepl& PlayerId, TSubclassOf<APawn> InClass)
+	{
+		PlayerDesiredClasses.Add(PlayerId, InClass);
+	}
+
+	TSubclassOf<APawn> GetPlayerDesiredClass(const FUniqueNetIdRepl& PlayerId) const
+	{
+		const TSubclassOf<APawn>* Found = PlayerDesiredClasses.Find(PlayerId);
+		return Found ? *Found : nullptr;
+	}
 
 protected:
 	// Class constructor. We won't use this in this tutorial. 
@@ -36,8 +62,7 @@ protected:
 	// Function called when players leave the dedicated server. Trigger UnregisterPlayer from base class and used to End Sesion. 
 	virtual void NotifyLogout(const APlayerController* ExitingPlayer);
 
-	// Hardcoding the session name for this tutorial. 
-	FName SessionName = "SessionName";
+	FName SessionName;
 
 	// Hardcoding the max number of players in a session. 
 	const int MaxNumberOfPlayersInSession = 2;
@@ -46,7 +71,7 @@ protected:
 	int NumberOfPlayersInSession;
 
 	// Function to create an EOS session. 
-	void CreateSession(FName KeyName = "KeyName", FString KeyValue = "KeyValue");
+	void CreateSession();
 
 	// Callback function. This function will run when creating the session compeletes. 
 	void HandleCreateSessionCompleted(FName SessionName, bool bWasSuccessful);
@@ -57,8 +82,10 @@ protected:
 	// Used to keep track if the session exists or not. 
 	bool bSessionExists = false;
 
+	// Debug
 	// Function to register our players in the EOS Session. 
 	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId, bool bWasFromInvite = false);
+	// virtual bool RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdWrapper& UniqueIdWrapper, bool bWasInvited);
 
 	// Callback function. This function will run when registering the player compeletes. 
 	void HandleRegisterPlayerCompleted(FName SessionName, const TArray<FUniqueNetIdRef>& PlayerIds, bool bWasSuccesful);

@@ -47,6 +47,7 @@ public:
 
     // Called every frame
     virtual void Tick(float DeltaTime) override;
+    void LeaveSession(FName sessionName);
 
 protected:
     virtual void BeginPlay() override;
