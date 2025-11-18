@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "BaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -6,6 +6,11 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "GameFramework/PlayerState.h"
+
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemUtils.h"
+#include "Interfaces/OnlineSessionInterface.h"
 
 // Network
 #include "Net/UnrealNetwork.h"
@@ -17,7 +22,7 @@ ABaseCharacter::ABaseCharacter()
     PrimaryActorTick.bCanEverTick = true;
 
     // --- CAMERA ---
-    // Камера від першого лиця
+    // ÐšÐ°Ð¼ÐµÑ€Ð° Ð²Ñ–Ð´ Ð¿ÐµÑ€ÑˆÐ¾Ð³Ð¾ Ð»Ð¸Ñ†Ñ
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(RootComponent);
     FollowCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f)); // Eye level
@@ -206,6 +211,39 @@ void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
 {
     //UE_LOG(LogTemp, Log, TEXT("Special Ability triggered"));
     GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Special Ability triggered"));
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+    if (PC && PC->PlayerState)
+    {
+        const FUniqueNetIdRepl& UniqueId = PC->PlayerState->GetUniqueId();
+        if (UniqueId.IsValid())
+        {
+            UE_LOG(LogTemp, Error, TEXT("SpecialAbility: Client UniqueNetId: %s"), *UniqueId->ToString());
+            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SpecialAbility: Client UniqueNetId OK"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
+            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
+        }
+    }
+
+    UEOS_GameInstance* GameInstanceRef = Cast<UEOS_GameInstance>(GetWorld()->GetGameInstance());
+
+    if (!GameInstanceRef->CurrentSession.SessionResult.IsValid()) {
+        UE_LOG(LogTemp, Error, TEXT("Session in GameInstance is invalid!"));
+        return;
+    }
+    FName sessionName = FName(GameInstanceRef->CurrentSession.SessionResult.GetSessionIdStr());
+
+    // LeaveSession(sessionName);
+    LeaveSession(sessionName);
+
+    if (PC)
+    {
+        PC->ClientTravel(TEXT("/Game/Maps/MainMenu"), TRAVEL_Absolute);
+    }
 }
 
 void ABaseCharacter::Look(const FInputActionValue& Value)

@@ -14,4 +14,4 @@ Saved
 *.xcodeproj
 *.xcworkspace
 .vsconfig
-.bat
+*.bat
