@@ -1,5 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+ГЇВ»Вї// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "BaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -16,16 +15,14 @@
 // Network
 #include "Net/UnrealNetwork.h"
 
-#include "EOS_GameInstance.h"
-
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+    // Set this character to call Tick() every frame. You can turn this off to improve performance if you don't need it.
+    PrimaryActorTick.bCanEverTick = true;
 
     // --- CAMERA ---
-    // Камера від першого лиця
+    // ГђЕЎГђВ°ГђВјГђВµГ‘в‚¬ГђВ° ГђВІГ‘вЂ“ГђВґ ГђВїГђВµГ‘в‚¬Г‘Л†ГђВѕГђВіГђВѕ ГђВ»ГђВёГ‘вЂ Г‘ВЏ
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(RootComponent);
     FollowCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f)); // Eye level
@@ -39,15 +36,17 @@ ABaseCharacter::ABaseCharacter()
     bUseControllerRotationPitch = false;
     bUseControllerRotationRoll = false;
 
-    // Better character physisc
-    GetCharacterMovement()->GravityScale = 2.0f;             // сильніше тяжіння — персонаж падає швидше 1.8–2.5
-    GetCharacterMovement()->JumpZVelocity = 700.0f;          // сила стрибка 500–650
-    GetCharacterMovement()->AirControl = 0.7f;               // керованість у повітрі 0.3–0.6
-    GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f; // як швидко гальмує після руху 1500–2500
-    GetCharacterMovement()->GroundFriction = 8.0f;           // тертя з землею 6–10
-    GetCharacterMovement()->MaxAcceleration = 2048.0f;       // як швидко набирає швидкість 1500–2500
-    GetCharacterMovement()->Mass = 120.f;                    // для відчуття “ваги” (не обов'язково, але гарно впливає) 
+    // Better character physics
+    GetCharacterMovement()->GravityScale = 2.0f;
+    GetCharacterMovement()->JumpZVelocity = 700.0f;
+    GetCharacterMovement()->AirControl = 0.7f;
+    GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f;
+    GetCharacterMovement()->GroundFriction = 8.0f;
+    GetCharacterMovement()->MaxAcceleration = 2048.0f;
+    GetCharacterMovement()->Mass = 120.f;
 
+    // Default socket name can also be set here if you like
+    WeaponSocketName = TEXT("WeaponSocket");
 }
 
 // Called when the game starts or when spawned
@@ -56,9 +55,9 @@ void ABaseCharacter::BeginPlay()
     Super::BeginPlay();
 
     // GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("BaseCharacter: V1.2 Initialized!"));
-    
+
     ENetMode netMode = GetNetMode();
-    
+
     FString netModeStr = "Net mode: ";
 
     switch (netMode)
@@ -87,10 +86,10 @@ void ABaseCharacter::BeginPlay()
 
     switch (GetLocalRole())
     {
-    case ROLE_Authority: RoleStr = "ROLE_Authority (Server)"; break;
-    case ROLE_AutonomousProxy: RoleStr = "ROLE_AutonomousProxy (Local Player)"; break;
-    case ROLE_SimulatedProxy: RoleStr = "ROLE_SimulatedProxy (Other Player)"; break;
-    default: RoleStr = "ROLE_Unknown"; break;
+    case ROLE_Authority:       RoleStr = "ROLE_Authority (Server)";        break;
+    case ROLE_AutonomousProxy: RoleStr = "ROLE_AutonomousProxy (Local)";   break;
+    case ROLE_SimulatedProxy:  RoleStr = "ROLE_SimulatedProxy (Other)";    break;
+    default:                   RoleStr = "ROLE_Unknown";                   break;
     }
 
     FString DebugMsg = FString::Printf(TEXT("%s | %s | %s | %s"),
@@ -103,16 +102,14 @@ void ABaseCharacter::BeginPlay()
     // Change capsule color for local player
     if (GetName().Equals("BP_BaseCharacter_C_0") && GetCapsuleComponent())
     {
-        // Змінюємо колір капсули (матеріал)
         UMaterialInstanceDynamic* DynMat = GetCapsuleComponent()->CreateAndSetMaterialInstanceDynamic(0);
         if (DynMat)
         {
             DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor::Black);
         }
 
-        // Або простіше — змінити візуальний debug-колір
         GetCapsuleComponent()->ShapeColor = FColor::Black;
-        GetCapsuleComponent()->MarkRenderStateDirty(); // Оновити рендер
+        GetCapsuleComponent()->MarkRenderStateDirty();
     }
 
     // Add Input Mapping Context
@@ -126,12 +123,15 @@ void ABaseCharacter::BeginPlay()
     }
 
     GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+
+    // Give this character its default weapon (based on DefaultWeaponRow)
+    EquipDefaultWeapon();
 }
 
 // Called every frame
 void ABaseCharacter::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
+    Super::Tick(DeltaTime);
 }
 
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -140,14 +140,13 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABaseCharacter::Move);
-        EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this, &ABaseCharacter::StartSprint);
-        EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ABaseCharacter::StopSprint);
-        EnhancedInput->BindAction(SpecialAbilityAction, ETriggerEvent::Started, this, &ABaseCharacter::SpecialAbility);
-        EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABaseCharacter::Look);
-        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
+        EnhancedInput->BindAction(MoveAction,           ETriggerEvent::Triggered, this, &ABaseCharacter::Move);
+        EnhancedInput->BindAction(SprintAction,         ETriggerEvent::Started,   this, &ABaseCharacter::StartSprint);
+        EnhancedInput->BindAction(SprintAction,         ETriggerEvent::Completed, this, &ABaseCharacter::StopSprint);
+        EnhancedInput->BindAction(SpecialAbilityAction, ETriggerEvent::Started,   this, &ABaseCharacter::SpecialAbility);
+        EnhancedInput->BindAction(LookAction,           ETriggerEvent::Triggered, this, &ABaseCharacter::Look);
+        EnhancedInput->BindAction(JumpAction,           ETriggerEvent::Started,   this, &ACharacter::Jump);
+        EnhancedInput->BindAction(JumpAction,           ETriggerEvent::Completed, this, &ACharacter::StopJumping);
     }
 }
 
@@ -160,10 +159,10 @@ void ABaseCharacter::Move(const FInputActionValue& Value)
         const FRotator YawRotation(0, Rotation.Yaw, 0);
 
         const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-        const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+        const FVector RightDirection   = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
         AddMovementInput(ForwardDirection, MovementVector.Y);
-        AddMovementInput(RightDirection, MovementVector.X);
+        AddMovementInput(RightDirection,   MovementVector.X);
     }
 }
 
@@ -176,7 +175,7 @@ void ABaseCharacter::Server_SetMoveSpeed_Implementation(float NewSpeed)
 void ABaseCharacter::StartSprint(const FInputActionValue& Value)
 {
     bIsSprinting = true;
-    
+
     if (HasAuthority())
     {
         MoveSpeed = DefaultMoveSpeed * SprintMultiplier;
@@ -262,44 +261,60 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
     DOREPLIFETIME(ABaseCharacter, MoveSpeed);
 }
 
-void ABaseCharacter::LeaveSession(FName SessionName)
+/* ================== WEAPONS ================== */
+
+void ABaseCharacter::EquipDefaultWeapon()
 {
-    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
-    if (!Subsystem) return;
-
-    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
-    if (!Session.IsValid()) return;
-
-    DestroySessionDelegateHandle = Session->AddOnDestroySessionCompleteDelegate_Handle(
-        FOnEndSessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleDestroySessionCompleted));
-
-    // Remove the session locally so it’s no longer referenced.
-    if (!Session->DestroySession(SessionName))
+    // If no row configured, do nothing
+    if (!DefaultWeaponRow.DataTable || DefaultWeaponRow.RowName.IsNone())
     {
-        UE_LOG(LogTemp, Error, TEXT("Failed to destroy session locally."));
-        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
-        DestroySessionDelegateHandle.Reset();
+        return;
     }
+
+    // Find the row in the DataTable (DT_WeaponList)
+    const FST_WeaponTableRow* Row =
+        DefaultWeaponRow.DataTable->FindRow<FST_WeaponTableRow>(
+            DefaultWeaponRow.RowName,
+            TEXT("EquipDefaultWeapon"));
+
+    if (!Row)
+    {
+        return; // Invalid row name
+    }
+
+    // SpawnActor must be set in the row (TSubclassOf<AActor>)
+    if (!Row->SpawnActor)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner      = this;
+    SpawnParams.Instigator = this;
+
+    // Spawn the weapon actor
+    AActor* Weapon = World->SpawnActor<AActor>(
+        Row->SpawnActor,
+        GetActorLocation(),
+        GetActorRotation(),
+        SpawnParams);
+
+    if (!Weapon)
+    {
+        return;
+    }
+
+    CurrentWeapon = Weapon;
+
+    // Attach it to the character mesh at the specified socket
+    Weapon->AttachToComponent(
+        GetMesh(),
+        FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+        WeaponSocketName);
 }
-
-void ABaseCharacter::HandleDestroySessionCompleted(FName SessionName, bool bWasSuccessful)
-{
-    IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
-    IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
-
-    if (Session.IsValid())
-    {
-        Session->ClearOnEndSessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
-        DestroySessionDelegateHandle.Reset();
-    }
-
-    if (bWasSuccessful)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Session destroyed successfully."));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Failed to destroy session."));
-    }
-}
-
