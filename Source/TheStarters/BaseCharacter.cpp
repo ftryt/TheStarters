@@ -24,11 +24,17 @@ ABaseCharacter::ABaseCharacter()
     PrimaryActorTick.bCanEverTick = true;
 
     // --- CAMERA ---
-    // ÐšÐ°Ð¼ÐµÑ€Ð° Ð²Ñ–Ð´ Ð¿ÐµÑ€ÑˆÐ¾Ð³Ð¾ Ð»Ð¸Ñ†Ñ
+
+    // Spring arm (CameraBoom) між капсулою і камерою
+    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+    CameraBoom->SetupAttachment(RootComponent);
+    CameraBoom->TargetArmLength = 300.0f;              // відстань камери за персонажем
+    CameraBoom->bUsePawnControlRotation = true;        // бум обертається разом з контролером
+
+    // Камера, прикріплена до бума
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-    FollowCamera->SetupAttachment(RootComponent);
-    FollowCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f)); // Eye level
-    FollowCamera->bUsePawnControlRotation = true;
+    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+    FollowCamera->bUsePawnControlRotation = false;     // обертання вже йде через бум
 
     // Movement does not affect rotation
     GetCharacterMovement()->bOrientRotationToMovement = false;
@@ -183,13 +189,13 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
     if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
-        EnhancedInput->BindAction(MoveAction,           ETriggerEvent::Triggered, this, &ABaseCharacter::Move);
-        EnhancedInput->BindAction(SprintAction,         ETriggerEvent::Started,   this, &ABaseCharacter::StartSprint);
-        EnhancedInput->BindAction(SprintAction,         ETriggerEvent::Completed, this, &ABaseCharacter::StopSprint);
-        EnhancedInput->BindAction(SpecialAbilityAction, ETriggerEvent::Started,   this, &ABaseCharacter::SpecialAbility);
-        EnhancedInput->BindAction(LookAction,           ETriggerEvent::Triggered, this, &ABaseCharacter::Look);
-        EnhancedInput->BindAction(JumpAction,           ETriggerEvent::Started,   this, &ACharacter::Jump);
-        EnhancedInput->BindAction(JumpAction,           ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABaseCharacter::Move);
+        EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this, &ABaseCharacter::StartSprint);
+        EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ABaseCharacter::StopSprint);
+        EnhancedInput->BindAction(SpecialAbilityAction, ETriggerEvent::Started, this, &ABaseCharacter::SpecialAbility);
+        EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABaseCharacter::Look);
+        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
     }
 }
 
@@ -202,10 +208,10 @@ void ABaseCharacter::Move(const FInputActionValue& Value)
         const FRotator YawRotation(0, Rotation.Yaw, 0);
 
         const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-        const FVector RightDirection   = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+        const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
         AddMovementInput(ForwardDirection, MovementVector.Y);
-        AddMovementInput(RightDirection,   MovementVector.X);
+        AddMovementInput(RightDirection, MovementVector.X);
     }
 }
 
@@ -338,7 +344,7 @@ void ABaseCharacter::EquipDefaultWeapon()
     }
 
     FActorSpawnParameters SpawnParams;
-    SpawnParams.Owner      = this;
+    SpawnParams.Owner = this;
     SpawnParams.Instigator = this;
 
     // Spawn the weapon actor
