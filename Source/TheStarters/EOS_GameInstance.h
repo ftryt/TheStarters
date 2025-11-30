@@ -10,7 +10,6 @@
 
 #include "EOS_GameInstance.generated.h"
 
-// Структура для BP (бо SessionSearchResult напряму не працює в BP)
 USTRUCT(BlueprintType)
 struct FMyBlueprintSessionResult
 {

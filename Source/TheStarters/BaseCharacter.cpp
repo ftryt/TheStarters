@@ -17,24 +17,20 @@
 // Network
 #include "Net/UnrealNetwork.h"
 
+// Ping logic
+#include "Kismet/KismetSystemLibrary.h" // For LineTrace
+#include "PingMarker.h"
+
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
-    // Set this character to call Tick() every frame. You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
 
-    // --- CAMERA ---
-
-    // Spring arm (CameraBoom) між капсулою і камерою
-    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-    CameraBoom->SetupAttachment(RootComponent);
-    CameraBoom->TargetArmLength = 300.0f;              // відстань камери за персонажем
-    CameraBoom->bUsePawnControlRotation = true;        // бум обертається разом з контролером
-
-    // Камера, прикріплена до бума
-    FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-    FollowCamera->bUsePawnControlRotation = false;     // обертання вже йде через бум
+    // --- First person camera ---
+    FPCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FPCamera"));
+    FPCamera->SetupAttachment(GetMesh(), TEXT("head"));
+    // FPCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f)); // Eye level
+    FPCamera->bUsePawnControlRotation = true;
 
     // Movement does not affect rotation
     GetCharacterMovement()->bOrientRotationToMovement = false;
@@ -44,7 +40,7 @@ ABaseCharacter::ABaseCharacter()
     bUseControllerRotationPitch = false;
     bUseControllerRotationRoll = false;
 
-    // Better character physics
+    // Better character physisc
     GetCharacterMovement()->GravityScale = 2.0f;
     GetCharacterMovement()->JumpZVelocity = 700.0f;
     GetCharacterMovement()->AirControl = 0.7f;
@@ -53,8 +49,6 @@ ABaseCharacter::ABaseCharacter()
     GetCharacterMovement()->MaxAcceleration = 2048.0f;
     GetCharacterMovement()->Mass = 120.f;
 
-    // Default socket name can also be set here if you like
-    WeaponSocketName = TEXT("WeaponSocket");
 }
 
 // Called when the game starts or when spawned
@@ -196,6 +190,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABaseCharacter::Look);
         EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
         EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+        EnhancedInput->BindAction(PingAction, ETriggerEvent::Started, this, &ABaseCharacter::PerformPing);
     }
 }
 
@@ -308,6 +303,7 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, MoveSpeed);
+    DOREPLIFETIME(ABaseCharacter, TeamID);
 }
 
 /* ================== WEAPONS ================== */
@@ -366,4 +362,64 @@ void ABaseCharacter::EquipDefaultWeapon()
         GetMesh(),
         FAttachmentTransformRules::SnapToTargetNotIncludingScale,
         WeaponSocketName);
+}
+
+/* ================== PING SYSTEM ================== */
+
+void ABaseCharacter::PerformPing(const FInputActionValue& Value)
+{
+    // We only want the local controller to instigate the ping trace
+    if (!IsLocallyControlled() || !FPCamera) return;
+
+    FVector Start = FPCamera->GetComponentLocation();
+    FVector Forward = FPCamera->GetForwardVector();
+    FVector End = Start + (Forward * 10000.0f); // 100 meter trace
+
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this); // Ignore self
+
+    // Perform Line Trace
+    bool bHit = GetWorld()->LineTraceSingleByChannel(
+        HitResult,
+        Start,
+        End,
+        ECC_Visibility,
+        QueryParams
+    );
+
+    if (bHit)
+    {
+        // Tell the server.
+        Server_SpawnPing(HitResult.Location, HitResult.Normal);
+    }
+    else
+    {
+        // Optional: Ping "in the air" at max distance
+        Server_SpawnPing(End, FVector::UpVector);
+    }
+}
+
+void ABaseCharacter::Server_SpawnPing_Implementation(FVector HitLocation, FVector HitNormal)
+{
+    if (!PingActorClass) return;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.Instigator = this;
+
+    // Slight offset so the ping doesn't clip inside the wall
+    FVector SpawnLoc = HitLocation + (HitNormal * 5.0f);
+    FRotator SpawnRot = HitNormal.Rotation();
+
+    APingMarker* NewPing = GetWorld()->SpawnActor<APingMarker>(PingActorClass, SpawnLoc, SpawnRot, SpawnParams);
+
+    if (NewPing)
+    {
+        // Assign the TeamID to the Ping so it knows who to replicate to
+        NewPing->TeamID = this->TeamID;
+
+        // Destroy the ping after 5 seconds
+        NewPing->SetLifeSpan(5.0f);
+    }
 }
