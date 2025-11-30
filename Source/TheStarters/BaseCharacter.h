@@ -45,20 +45,25 @@ public:
     // Sets default values for this character's properties
     ABaseCharacter();
 
-    // Called every frame
     virtual void Tick(float DeltaTime) override;
     void LeaveSession(FName sessionName);
+
+    // --- PING SYSTEM ---
+
+    // Represents the player's team
+    // Should live on PlayerState.
+    UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Team")
+    int32 TeamID = 0;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Ping")
+    TSubclassOf<class APingMarker> PingActorClass;
 
 protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-    // NEW: boom між капсулою і камерою
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-    USpringArmComponent* CameraBoom;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-    UCameraComponent* FollowCamera;
+    UCameraComponent* FPCamera;
 
     // Enhanced Input Actions
     UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -79,12 +84,20 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputAction* LookAction;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    class UInputAction* PingAction;
+
     // Input functions
     void Move(const FInputActionValue& Value);
     void StartSprint(const FInputActionValue& Value);
     void StopSprint(const FInputActionValue& Value);
     void SpecialAbility(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
+    void PerformPing(const FInputActionValue& Value);
+
+    // Server RPC
+    UFUNCTION(Server, Reliable)
+    void Server_SpawnPing(FVector HitLocation, FVector HitNormal);
 
     UFUNCTION(Server, Reliable)
     void Server_SetMoveSpeed(float NewSpeed);
