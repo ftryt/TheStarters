@@ -65,7 +65,7 @@ protected:
 	FName SessionName;
 
 	// Hardcoding the max number of players in a session. 
-	const int MaxNumberOfPlayersInSession = 2;
+	const int MaxNumberOfPlayersInSession = 10;
 
 	// Variable to keep track of the number of players in a session.  
 	int NumberOfPlayersInSession;
