@@ -14,27 +14,34 @@ APingMarker::APingMarker()
 void APingMarker::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    DOREPLIFETIME(APingMarker, TeamID);
+    
+    // Register a variable for replication
+    // COND_InitialOnly is a good optimization if TeamID does not change after spawn.
+    // If it can change, just use DOREPLIFETIME.
+    DOREPLIFETIME_CONDITION(APingMarker, TeamID, COND_InitialOnly);
 }
 
+// Filtering: This code is executed ONLY ON THE SERVER for each client
 bool APingMarker::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
-    // 1. If it's the server, it's always relevant (so it exists)
+    // If it's the server, it's always relevant (so it exists)
     if (HasAuthority()) return true;
 
-    // 2. RealViewer is usually the PlayerController. We need to get the Pawn.
+    // RealViewer is the client PlayerController for which visibility is checked
     const APlayerController* PC = Cast<APlayerController>(RealViewer);
-    if (!PC) return Super::IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
 
-    const ABaseCharacter* ViewerPawn = Cast<ABaseCharacter>(PC->GetPawn());
-
-    // 3. Compare Team IDs
-    if (ViewerPawn)
+    if (PC && PC->PlayerState)
     {
-        // If the viewer has the same TeamID as the Ping, replicate it!
-        return ViewerPawn->TeamID == this->TeamID;
+        const AEOS_PlayerState* PS = Cast<AEOS_PlayerState>(PC->PlayerState);
+
+        if (PS)
+        {
+            // Logic: Show ping only if commands match
+            return PS->CurrentTeam == this->TeamID;
+        }
     }
 
-    return false;
+    // By default (if something goes wrong) it is better not to show or call Super
+    return Super::IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
 }
 

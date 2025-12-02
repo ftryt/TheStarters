@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+
+#include "EOS_PlayerState.h"
+
 #include "PingMarker.generated.h"
 
 UCLASS()
@@ -15,8 +18,8 @@ public:
     APingMarker();
 
     // The Team ID this ping belongs to
-    UPROPERTY(Replicated)
-    int32 TeamID = -1;
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Team")
+    ETeam TeamID = ETeam::None;
 
     // Override this to filter visibility
     virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
