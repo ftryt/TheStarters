@@ -18,6 +18,9 @@
 // Data table for weapons (row type ST_WeaponTableRow used by DT_WeaponList)
 #include "Engine/DataTable.h"
 
+// Team System (enum class ETeam)
+#include "EOS_PlayerState.h"
+
 #include "BaseCharacter.generated.h"
 
 // DataTable row used by DT_WeaponList
@@ -47,14 +50,12 @@ public:
 
     virtual void Tick(float DeltaTime) override;
     void LeaveSession(FName sessionName);
+   
+    // --- TEAM SYSTEM ---
+    UFUNCTION(BlueprintCallable, Category = "Team")
+    void UpdateTeamVisuals(ETeam NewTeam);
 
     // --- PING SYSTEM ---
-
-    // Represents the player's team
-    // Should live on PlayerState.
-    UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Team")
-    int32 TeamID = 0;
-
     UPROPERTY(EditDefaultsOnly, Category = "Ping")
     TSubclassOf<class APingMarker> PingActorClass;
 
@@ -64,7 +65,17 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     UCameraComponent* FPCamera;
+    
+    // --- TEAM SYSTEM ---
+    UPROPERTY(EditDefaultsOnly, Category = "Team Visuals")
+    UMaterialInterface* MaterialTeamA;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Team Visuals")
+    UMaterialInterface* MaterialTeamB;
+
+    // LOGIC IMPROVEMENT: What if PlayerState arrived later than the character?
+    virtual void OnRep_PlayerState() override;
+    
     // Enhanced Input Actions
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     class UInputMappingContext* PlayerMappingContext;
@@ -97,7 +108,7 @@ protected:
 
     // Server RPC
     UFUNCTION(Server, Reliable)
-    void Server_SpawnPing(FVector HitLocation, FVector HitNormal);
+    void Server_SpawnPing(FVector HitLocation, FVector HitNormal, ETeam PingTeam);
 
     UFUNCTION(Server, Reliable)
     void Server_SetMoveSpeed(float NewSpeed);

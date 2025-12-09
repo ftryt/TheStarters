@@ -21,6 +21,9 @@
 #include "Kismet/KismetSystemLibrary.h" // For LineTrace
 #include "PingMarker.h"
 
+// Team system
+#include "EOS_PlayerState.h"
+
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
@@ -303,11 +306,9 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ABaseCharacter, MoveSpeed);
-    DOREPLIFETIME(ABaseCharacter, TeamID);
 }
 
 /* ================== WEAPONS ================== */
-
 void ABaseCharacter::EquipDefaultWeapon()
 {
     // If no row configured, do nothing
@@ -365,7 +366,6 @@ void ABaseCharacter::EquipDefaultWeapon()
 }
 
 /* ================== PING SYSTEM ================== */
-
 void ABaseCharacter::PerformPing(const FInputActionValue& Value)
 {
     // We only want the local controller to instigate the ping trace
@@ -390,17 +390,24 @@ void ABaseCharacter::PerformPing(const FInputActionValue& Value)
 
     if (bHit)
     {
+        ETeam myTeam = ETeam::None;
+        AEOS_PlayerState* MyPS = GetPlayerState<AEOS_PlayerState>();
+        if (MyPS)
+        {
+            myTeam = MyPS->CurrentTeam;
+        }
+
         // Tell the server.
-        Server_SpawnPing(HitResult.Location, HitResult.Normal);
+        Server_SpawnPing(HitResult.Location, HitResult.Normal, myTeam);
     }
     else
     {
         // Optional: Ping "in the air" at max distance
-        Server_SpawnPing(End, FVector::UpVector);
+        Server_SpawnPing(End, FVector::UpVector, ETeam::None);
     }
 }
 
-void ABaseCharacter::Server_SpawnPing_Implementation(FVector HitLocation, FVector HitNormal)
+void ABaseCharacter::Server_SpawnPing_Implementation(FVector HitLocation, FVector HitNormal, ETeam PingTeam)
 {
     if (!PingActorClass) return;
 
@@ -417,9 +424,47 @@ void ABaseCharacter::Server_SpawnPing_Implementation(FVector HitLocation, FVecto
     if (NewPing)
     {
         // Assign the TeamID to the Ping so it knows who to replicate to
-        NewPing->TeamID = this->TeamID;
+        NewPing->TeamID = PingTeam;
 
         // Destroy the ping after 5 seconds
         NewPing->SetLifeSpan(5.0f);
+    }
+}
+
+/* ================== TEAM SYSTEM ================== */
+void ABaseCharacter::UpdateTeamVisuals(ETeam NewTeam)
+{
+    UMaterialInterface* TargetMaterial = nullptr;
+
+    switch (NewTeam)
+    {
+    case ETeam::TeamA:
+        TargetMaterial = MaterialTeamA;
+        break;
+    case ETeam::TeamB:
+        TargetMaterial = MaterialTeamB;
+        break;
+    default:
+        // Should return the default material
+        break;
+    }
+
+    if (TargetMaterial && GetMesh())
+    {
+        GetMesh()->SetMaterial(0, TargetMaterial);
+    }
+}
+
+// This is an improvement: it solves the "Race Condition" problem
+void ABaseCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    // When PlayerState finally syncs with this character,
+    // we check what team it is on and immediately paint it.
+    AEOS_PlayerState* MyPS = GetPlayerState<AEOS_PlayerState>();
+    if (MyPS)
+    {
+        UpdateTeamVisuals(MyPS->CurrentTeam);
     }
 }
