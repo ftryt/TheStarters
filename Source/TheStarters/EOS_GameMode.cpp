@@ -2,23 +2,42 @@
 
 
 #include "EOS_GameMode.h"
-#include "EOS_GameSession.h"
+#include "EOS_PlayerState.h"
 #include "GameFramework/PlayerState.h"
-#include "EOS_PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 
-UClass* AEOS_GameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
+FString AEOS_GameMode::InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal)
 {
-	AEOS_GameSession* Session = Cast<AEOS_GameSession>(GameSession);
-	APlayerState* PS = InController ? InController->PlayerState : nullptr;
+    FString ErrorMessage = Super::InitNewPlayer(NewPlayerController, UniqueId, Options, Portal);
+    if (!ErrorMessage.IsEmpty())
+    {
+        return ErrorMessage;
+    }
 
-	if (Session && PS && PS->GetUniqueId().IsValid()) {
-		TSubclassOf<APawn> ChosenClass = Session->GetPlayerDesiredClass(PS->GetUniqueId());
-		if (ChosenClass)
-		{
-			DefaultPawnClass = ChosenClass;
-			return ChosenClass;
-		}
-	}
-	
-	return Super::GetDefaultPawnClassForController_Implementation(InController);
+    // Parse "CharID" from Options
+    FString CharacterID = UGameplayStatics::ParseOption(Options, TEXT("CharID"));
+
+    // Find class in our Map
+    TSubclassOf<APawn>* FoundClass = CharacterClassesMap.Find(CharacterID);
+
+    // Write to PlayerState (hopefully)
+    if (NewPlayerController)
+    {
+        AEOS_PlayerState* PS = NewPlayerController->GetPlayerState<AEOS_PlayerState>();
+        if (PS)
+        {
+            if (FoundClass && *FoundClass)
+            {
+                PS->DesiredPawnClass = *FoundClass;
+                UE_LOG(LogTemp, Log, TEXT("Player selected class: %s"), *CharacterID);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Character ID '%s' not found inside CharacterClassesMap! Using Default."), *CharacterID);
+                PS->DesiredPawnClass = DefaultPawnClass;
+            }
+        }
+    }
+
+    return ErrorMessage;
 }

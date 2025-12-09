@@ -91,6 +91,6 @@ public:
 
 	FMyBlueprintSessionResult CurrentSession;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "EOS Preferences")
-	TSubclassOf<APawn> DesiredPawnClass;
+	UPROPERTY(BlueprintReadWrite, Category = "Spawning")
+	FString SelectedCharacterString;
 };

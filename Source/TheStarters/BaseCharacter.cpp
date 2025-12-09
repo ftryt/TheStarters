@@ -259,7 +259,7 @@ void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
     //UE_LOG(LogTemp, Log, TEXT("Special Ability triggered"));
     GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Special Ability triggered"));
 
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    /*APlayerController* PC = GetWorld()->GetFirstPlayerController();
 
     if (PC && PC->PlayerState)
     {
@@ -274,23 +274,23 @@ void ABaseCharacter::SpecialAbility(const FInputActionValue& Value)
             UE_LOG(LogTemp, Error, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
             GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SpecialAbility: Client UniqueNetId is INVALID."));
         }
-    }
+    }*/
 
-    UEOS_GameInstance* GameInstanceRef = Cast<UEOS_GameInstance>(GetWorld()->GetGameInstance());
+    //UEOS_GameInstance* GameInstanceRef = Cast<UEOS_GameInstance>(GetWorld()->GetGameInstance());
 
-    if (!GameInstanceRef->CurrentSession.SessionResult.IsValid()) {
-        UE_LOG(LogTemp, Error, TEXT("Session in GameInstance is invalid!"));
-        return;
-    }
-    FName sessionName = FName(GameInstanceRef->CurrentSession.SessionResult.GetSessionIdStr());
+    //if (!GameInstanceRef->CurrentSession.SessionResult.IsValid()) {
+    //    UE_LOG(LogTemp, Error, TEXT("Session in GameInstance is invalid!"));
+    //    return;
+    //}
+    //FName sessionName = FName(GameInstanceRef->CurrentSession.SessionResult.GetSessionIdStr());
 
-    // LeaveSession(sessionName);
-    LeaveSession(sessionName);
+    //// LeaveSession(sessionName);
+    //LeaveSession(sessionName);
 
-    if (PC)
-    {
-        PC->ClientTravel(TEXT("/Game/Maps/MainMenu"), TRAVEL_Absolute);
-    }
+    //if (PC)
+    //{
+    //    PC->ClientTravel(TEXT("/Game/Maps/MainMenu"), TRAVEL_Absolute);
+    //}
 }
 
 void ABaseCharacter::Look(const FInputActionValue& Value)

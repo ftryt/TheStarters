@@ -42,15 +42,6 @@ void UEOS_GameInstance::Init()
 	Identity->OnLoginCompleteDelegates->AddUObject(this, &UEOS_GameInstance::OnLoginEOSCompleted);
 	Session->OnFindSessionsCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnFindSessionsCompleted);
 	Session->OnJoinSessionCompleteDelegates.AddUObject(this, &UEOS_GameInstance::OnJoinSessionCompleted);
-
-	auto id = Identity->GetUniquePlayerId(0);
-	if (id.IsValid()) {
-		UE_LOG(LogTemp, Error, TEXT("GetUniquePlayerId -> %s"), *id->ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("UniquePlayerId invalid"));
-	}
 }
 
 void UEOS_GameInstance::LoginWithEOS(FString ID, FString Token, FString LoginType)
@@ -318,6 +309,9 @@ void UEOS_GameInstance::OnJoinSessionCompleted(FName SessionName, EOnJoinSession
 		// Explicitly set map name (avoiding some weird bugs) 
 		// !!! Requires setting up MAPNAME when creating session
 		ServerURL.Map = MapName;
+
+		FString OptionString = FString::Printf(TEXT("CharID=%s"), *SelectedCharacterString);
+		ServerURL.AddOption(*OptionString);
 
 		UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionCompleted: Connection to: %s"), *ServerURL.ToString());
 

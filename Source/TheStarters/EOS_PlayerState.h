@@ -29,7 +29,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Team")
     void SetTeam(ETeam NewTeam);
 
+    // UPROPERTY(Replicated, BlueprintReadWrite, Category = "Spawning")
+    UPROPERTY(BlueprintReadWrite, Category = "Spawning")
+    TSubclassOf<APawn> DesiredPawnClass;
+
 protected:
     UFUNCTION()
     void OnRep_CurrentTeam();
+
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+    // virtual void CopyProperties(APlayerState* PlayerState) override;
 };

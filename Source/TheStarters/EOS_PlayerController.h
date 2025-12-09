@@ -18,7 +18,5 @@ class THESTARTERS_API AEOS_PlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(Server, Reliable)
-	void ServerSetDesiredPawnClass(TSubclassOf<APawn> ChosenClass);
-	virtual void BeginPlay() override;
+	
 };

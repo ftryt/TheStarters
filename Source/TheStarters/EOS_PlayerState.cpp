@@ -10,6 +10,7 @@ void AEOS_PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(AEOS_PlayerState, CurrentTeam);
+    // DOREPLIFETIME(AEOS_PlayerState, DesiredPawnClass);
 }
 
 void AEOS_PlayerState::SetTeam(ETeam NewTeam)
@@ -41,3 +42,19 @@ void AEOS_PlayerState::OnRep_CurrentTeam()
         MyChar->UpdateTeamVisuals(CurrentTeam);
     }
 }
+
+//void AEOS_PlayerState::CopyProperties(APlayerState* PlayerState)
+//{
+//    Super::CopyProperties(PlayerState);
+//
+//    UE_LOG(LogTemp, Log, TEXT("Start CopyProperties"));
+//
+//    AEOS_PlayerState* NewPlayerState = Cast<AEOS_PlayerState>(PlayerState);
+//    if (NewPlayerState)
+//    {
+//        UE_LOG(LogTemp, Log, TEXT("COPING CopyProperties"));
+//
+//        // Transfer data
+//        NewPlayerState->DesiredPawnClass = this->DesiredPawnClass;
+//    }
+//}

@@ -247,12 +247,6 @@ void AEOS_GameSession::UnregisterPlayer(const APlayerController* ExitingPlayer)
 				UE_LOG(LogTemp, Error, TEXT("UnregisterPlayer failed: UniqueId is invalid!"));
 				return;
 			}
-
-			// Remove player from PlayerDesiredClasses map
-			if (PlayerDesiredClasses.Remove(ExitingPlayer->PlayerState->GetUniqueId()) > 0)
-			{
-				UE_LOG(LogTemp, Log, TEXT("Removed PlayerDesiredClass entry for player %s"), *ExitingPlayer->PlayerState->GetUniqueId()->ToString());
-			}
 			
 			// Bind delegate to callback function
 			UnregisterPlayerDelegateHandle =
